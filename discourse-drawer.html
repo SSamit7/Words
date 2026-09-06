@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Discourse Drawer — Pull a Topic, Say Your Piece</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:       #e9e0c6;
+    --paper-dark:  #dcd0aa;
+    --card:        #faf5e6;
+    --card-edge:   #cbbd94;
+    --ink:         #2a2318;
+    --ink-soft:    #5b5236;
+    --stamp-red:   #a3392b;
+    --stamp-red-d: #7c2b20;
+    --brass:       #93743c;
+    --brass-light: #c8a664;
+    --shadow:      rgba(42,35,24,0.35);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+
+  body{
+    background:
+      radial-gradient(ellipse at top left, rgba(255,255,255,0.15), transparent 60%),
+      var(--paper);
+    background-image:
+      radial-gradient(rgba(0,0,0,0.035) 1px, transparent 1px),
+      linear-gradient(var(--paper), var(--paper));
+    background-size: 3px 3px, cover;
+    color: var(--ink);
+    font-family: 'Spectral', serif;
+    min-height: 100vh;
+    display:flex;
+    justify-content:center;
+    padding: 28px 14px 60px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{ animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  }
+
+  .wrap{ width:100%; max-width: 620px; }
+
+  /* ---------- Header ---------- */
+  header{ text-align:center; margin-bottom: 22px; }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 6px;
+  }
+  h1{
+    font-family:'Special Elite', monospace;
+    font-size: clamp(26px, 6vw, 36px);
+    letter-spacing: 0.01em;
+    margin: 0 0 8px;
+    color: var(--ink);
+  }
+  .sub{
+    font-size: 15px;
+    color: var(--ink-soft);
+    font-style: italic;
+    max-width: 440px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+
+  /* ---------- Drawer tabs (categories) ---------- */
+  .drawers{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content:center;
+    margin: 22px 0 26px;
+  }
+  .drawer-tab{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--paper-dark);
+    border: 1px solid var(--card-edge);
+    border-bottom-width: 3px;
+    color: var(--ink-soft);
+    padding: 8px 12px 7px;
+    border-radius: 3px 3px 2px 2px;
+    cursor: pointer;
+    transition: transform .12s ease, background .15s ease, color .15s ease;
+  }
+  .drawer-tab:hover{ transform: translateY(-1px); }
+  .drawer-tab:focus-visible{ outline: 2px solid var(--stamp-red); outline-offset: 2px; }
+  .drawer-tab.active{
+    background: var(--ink);
+    color: var(--card);
+    border-color: var(--ink);
+  }
+
+  /* ---------- Card stage ---------- */
+  .stage{
+    perspective: 1400px;
+    display:flex;
+    justify-content:center;
+    margin-bottom: 18px;
+  }
+  .slot{
+    width: 100%;
+    max-width: 420px;
+    height: 260px;
+    position: relative;
+  }
+  .slot::before{
+    /* the drawer mouth the card slides from */
+    content:"";
+    position:absolute;
+    top:-10px; left: 6%; right: 6%;
+    height: 14px;
+    background: linear-gradient(180deg, var(--shadow), transparent);
+    border-radius: 50%;
+    opacity: .5;
+  }
+
+  .card{
+    position:absolute;
+    inset:0;
+    background: var(--card);
+    border: 1px solid var(--card-edge);
+    border-radius: 4px;
+    box-shadow: 0 14px 28px -12px var(--shadow), 0 2px 0 var(--card-edge) inset;
+    padding: 20px 22px;
+    display:flex;
+    flex-direction:column;
+    cursor: pointer;
+    transform-style: preserve-3d;
+    transform: translateY(0) rotate(0deg);
+    transition: transform .55s cubic-bezier(.2,.85,.35,1.1), box-shadow .3s ease;
+    animation: settle .5s ease;
+  }
+  .card:focus-visible{ outline: 2px solid var(--stamp-red); outline-offset: 3px; }
+
+  @keyframes settle{
+    from{ transform: translateY(-70px) rotate(-3deg); opacity: 0; }
+    to{ transform: translateY(0) rotate(0deg); opacity: 1; }
+  }
+  .card.pulling{
+    animation: pullOut .45s cubic-bezier(.3,.7,.3,1);
+  }
+  @keyframes pullOut{
+    0%{ transform: translateY(0) rotate(0); }
+    35%{ transform: translateY(-8px) rotate(-1.5deg); }
+    100%{ transform: translateY(-70px) rotate(2deg); opacity:0; }
+  }
+
+  .card-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.04em;
+  }
+  .card-no{ opacity:.75; }
+
+  .stamp{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--stamp-red);
+    border: 1.5px solid var(--stamp-red);
+    padding: 3px 8px;
+    border-radius: 2px;
+    transform: rotate(-6deg);
+    opacity: 0.85;
+    background: rgba(163,57,43,0.05);
+  }
+
+  .card-word{
+    flex: 1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    font-family:'Special Elite', monospace;
+    font-size: clamp(26px, 7vw, 36px);
+    line-height: 1.15;
+    color: var(--ink);
+    padding: 10px 4px;
+  }
+
+  .card-hint{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  .card-meaning{
+    display:none;
+    flex:1;
+    align-items:center;
+    font-size: 15.5px;
+    line-height: 1.55;
+    color: var(--ink);
+    padding: 6px 2px;
+  }
+  .card.revealed .card-word{ display:none; }
+  .card.revealed .card-meaning{ display:flex; }
+  .card.revealed .card-hint::after{ content: " tap to flip back"; }
+  .card-hint::after{ content: " tap card to reveal meaning"; }
+
+  /* ---------- Pull button ---------- */
+  .pull-row{
+    display:flex;
+    justify-content:center;
+    margin: 6px 0 30px;
+  }
+  .pull-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: var(--stamp-red);
+    color: var(--card);
+    border: none;
+    padding: 13px 26px;
+    border-radius: 3px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 var(--stamp-red-d);
+    transition: transform .08s ease, box-shadow .08s ease;
+  }
+  .pull-btn:hover{ filter: brightness(1.05); }
+  .pull-btn:active{ transform: translateY(3px); box-shadow: 0 1px 0 var(--stamp-red-d); }
+  .pull-btn:focus-visible{ outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  .tally{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 10px;
+    letter-spacing: 0.03em;
+  }
+
+  /* ---------- Recorder module ---------- */
+  .recorder{
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 6px;
+    padding: 18px 18px 16px;
+    margin-bottom: 22px;
+    box-shadow: 0 10px 24px -12px var(--shadow);
+  }
+  .recorder-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--brass-light);
+    margin-bottom: 12px;
+  }
+  .reels{
+    display:flex;
+    justify-content:center;
+    gap: 40px;
+    margin-bottom: 14px;
+  }
+  .reel{
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 3px solid var(--brass);
+    position: relative;
+    background: repeating-conic-gradient(var(--brass) 0deg 8deg, transparent 8deg 45deg);
+  }
+  .reel::after{
+    content:"";
+    position:absolute; inset:16px;
+    border-radius:50%;
+    background: var(--ink);
+    border: 2px solid var(--paper-dark);
+  }
+  .reel.spin{ animation: spin 1.8s linear infinite; }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  .rec-controls{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .rec-btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: transparent;
+    color: var(--paper);
+    border: 1px solid var(--brass);
+    padding: 9px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    display:flex;
+    align-items:center;
+    gap: 7px;
+    transition: background .15s ease, color .15s ease;
+  }
+  .rec-btn:hover:not(:disabled){ background: var(--brass); color: var(--ink); }
+  .rec-btn:disabled{ opacity: 0.35; cursor: not-allowed; }
+  .rec-btn:focus-visible{ outline: 2px solid var(--brass-light); outline-offset: 2px; }
+  .dot{ width:9px; height:9px; border-radius:50%; background: var(--stamp-red); display:inline-block; }
+  .dot.live{ animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.25; } }
+
+  .rec-time{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--brass-light);
+    min-width: 52px;
+    text-align:center;
+  }
+
+  .playback{
+    margin-top: 14px;
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    gap: 10px;
+  }
+  .playback.show{ display:flex; }
+  .playback audio{ width: 100%; }
+  .rec-status{
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    color: var(--brass-light);
+    margin-top: 10px;
+    min-height: 14px;
+  }
+
+  /* ---------- Sponsor slip (ad slot) ---------- */
+  .sponsor-slip{
+    border: 1px dashed var(--card-edge);
+    border-radius: 3px;
+    padding: 8px 10px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 10px;
+    background: rgba(255,255,255,0.25);
+    margin-bottom: 18px;
+  }
+  .sponsor-tag{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    opacity: 0.6;
+    white-space: nowrap;
+  }
+  .sponsor-slot{
+    flex:1;
+    min-height: 50px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-soft);
+    opacity: 0.45;
+  }
+
+  /* ---------- History strip ---------- */
+  .history{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content:center;
+  }
+  .history-chip{
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    background: var(--paper-dark);
+    border: 1px solid var(--card-edge);
+    color: var(--ink-soft);
+    padding: 4px 9px;
+    border-radius: 2px;
+  }
+
+  footer{
+    text-align:center;
+    margin-top: 30px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-soft);
+    opacity: 0.55;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Est. for open conversation</p>
+    <h1>The Discourse Drawer</h1>
+    <p class="sub">Pull a card, read it aloud, and see where the conversation goes. No side is printed on the label — only the word.</p>
+  </header>
+
+  <nav class="drawers" id="drawers" role="tablist" aria-label="Topic categories"></nav>
+
+  <div class="stage">
+    <div class="slot">
+      <div class="card" id="card" tabindex="0" role="button" aria-label="Tap to reveal the meaning of this word">
+        <div class="card-top">
+          <span class="card-no" id="cardNo">No. 0000</span>
+          <span class="stamp" id="cardStamp">TOPIC</span>
+        </div>
+        <div class="card-word" id="cardWord">PULL A CARD</div>
+        <div class="card-meaning" id="cardMeaning"></div>
+        <div class="card-hint" id="cardHint"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pull-row">
+    <button class="pull-btn" id="pullBtn">Pull a Card</button>
+  </div>
+  <p class="tally" id="tally">Cards pulled this sitting: 0</p>
+
+  <section class="recorder" aria-label="Voice recorder">
+    <p class="recorder-label">Reel-to-Reel — Record Your Discussion</p>
+    <div class="reels">
+      <div class="reel" id="reelL"></div>
+      <div class="reel" id="reelR"></div>
+    </div>
+    <div class="rec-controls">
+      <button class="rec-btn" id="recBtn"><span class="dot" id="recDot"></span> Record</button>
+      <button class="rec-btn" id="stopBtn" disabled>Stop</button>
+      <span class="rec-time" id="recTime">00:00</span>
+    </div>
+    <div class="playback" id="playback">
+      <audio id="player" controls></audio>
+      <button class="rec-btn" id="downloadBtn">Download to Phone</button>
+    </div>
+    <p class="rec-status" id="recStatus"></p>
+  </section>
+
+  <div class="sponsor-slip">
+    <span class="sponsor-tag">Sponsored notice</span>
+    <div class="sponsor-slot" id="adSlot">
+      <!--
+        AdSense placeholder.
+        Replace this comment with your ad unit, e.g.:
+        <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-XXXXXXXXXXXXXXX"
+             data-ad-slot="XXXXXXXXXX" data-ad-format="auto"></ins>
+        <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+        Kept small and boxed on purpose so it never crowds the cards.
+      -->
+      ad space — 300×50
+    </div>
+  </div>
+
+  <p class="tally" style="margin-bottom:8px;">Recently pulled</p>
+  <div class="history" id="history"></div>
+
+  <footer>Words are offered for discussion, not endorsement. Definitions are kept plain on purpose.</footer>
+</div>
+
+<script>
+(function(){
+  const DATA = {
+    government: {
+      label: "Government",
+      words: [
+        ["War","Armed conflict between states, groups, or nations, often fought over territory, power, or ideology."],
+        ["Trade","The exchange of goods, services, or capital between individuals, companies, or countries."],
+        ["Socialism","An economic and political system in which the means of production are owned or regulated by the community or the state."],
+        ["Capitalism","An economic system in which trade and industry are largely privately owned and run for profit."],
+        ["Democracy","A system of government in which power is held by the people, typically through elected representatives."],
+        ["Propaganda","Information, often biased or misleading, spread to promote a political cause or point of view."],
+        ["Sanctions","Penalties imposed by one country or group of countries on another, usually to influence political behavior."],
+        ["Sovereignty","The authority of a state to govern itself without outside interference."],
+        ["Lobbying","The act of attempting to influence government decisions on behalf of a particular interest."],
+        ["Nationalism","Identification with one's own nation and support for its interests, often placed above those of others."],
+        ["Diplomacy","The practice of conducting negotiations between representatives of different states or groups."]
+      ]
+    },
+    history: {
+      label: "History",
+      words: [
+        ["Colonization","The process of establishing control over a foreign territory and its people, often for economic or political gain."],
+        ["Cold War","The prolonged political and military tension between the United States and the Soviet Union after World War II."],
+        ["Industrial Revolution","The shift to new manufacturing processes across Europe and the U.S. from roughly 1760 to 1840."],
+        ["Renaissance","A period of European cultural and intellectual revival following the Middle Ages, roughly the 14th–17th century."],
+        ["Prohibition","The legal ban on manufacturing and selling alcohol in the United States from 1920 to 1933."],
+        ["Apartheid","A system of institutionalized racial segregation enforced in South Africa from 1948 to 1994."],
+        ["Partition","The division of a territory into separate political units, such as the 1947 division of British India."],
+        ["Revolution","A fundamental and often sudden change in political power or organizational structures."],
+        ["Feudalism","A social system in medieval Europe built around land ownership and obligations between lords and vassals."],
+        ["Genocide","The deliberate, systematic destruction of a national, ethnic, racial, or religious group."],
+        ["Decolonization","The process by which colonies gained independence from colonial rule, largely in the mid-20th century."]
+      ]
+    },
+    economics: {
+      label: "Economics",
+      words: [
+        ["Inflation","A general rise in prices across an economy, reducing the purchasing power of money over time."],
+        ["Recession","A period of temporary economic decline, typically marked by falling output and rising unemployment."],
+        ["Monopoly","A market structure where a single company or group controls the entire supply of a product or service."],
+        ["Currency","A system of money in general use within a particular country or region."],
+        ["Tariff","A tax imposed on imported or exported goods, often used to protect domestic industries."],
+        ["Deficit","The amount by which spending exceeds income, common in discussions of government budgets."],
+        ["Subsidy","Financial support given by a government to an industry or individual to promote economic activity."],
+        ["Globalization","The growing interconnection of the world's economies, cultures, and populations through trade and technology."],
+        ["Cryptocurrency","A digital form of currency secured by cryptography, typically operating independently of a central authority."],
+        ["Gig Economy","A labor market defined by short-term contracts and freelance work rather than permanent jobs."],
+        ["Minimum Wage","The lowest hourly, daily, or monthly pay that employers may legally pay their workers."]
+      ]
+    },
+    society: {
+      label: "Society",
+      words: [
+        ["Immigration","The movement of people into a country other than their native land, in order to settle there."],
+        ["Feminism","A range of movements advocating for the political, economic, and social equality of the sexes."],
+        ["Cancel Culture","The practice of withdrawing public support for a public figure or company after objectionable behavior."],
+        ["Gentrification","The process by which a neighborhood changes as wealthier residents move in, often displacing lower-income ones."],
+        ["Surveillance","The close monitoring of behavior or activities, often carried out by governments or institutions."],
+        ["Privacy","The state of being free from public attention or unauthorized intrusion into one's personal life."],
+        ["Universal Basic Income","A model in which all citizens receive a regular, unconditional sum of money from the government."],
+        ["Censorship","The suppression or prohibition of speech, writing, or other expression deemed objectionable."],
+        ["Multiculturalism","The presence and coexistence of multiple distinct cultural groups within one society."],
+        ["Class Struggle","The tension and conflict between different social classes, especially over resources and power."],
+        ["Free Speech","The right to express opinions without governmental restraint, subject to certain limits in most societies."]
+      ]
+    },
+    science: {
+      label: "Science & Ethics",
+      words: [
+        ["Artificial Intelligence","The simulation of human intelligence processes by computer systems, including learning and problem-solving."],
+        ["Cloning","The process of creating a genetically identical copy of an organism or cell."],
+        ["Climate Change","Long-term shifts in temperatures and weather patterns, largely driven by human activity since the 1800s."],
+        ["Genetic Engineering","The direct manipulation of an organism's genes using biotechnology."],
+        ["Vaccination","The administration of a vaccine to help the immune system develop protection against a disease."],
+        ["Nuclear Energy","Power generated by nuclear reactions, used both for electricity and, in weapons form, for warfare."],
+        ["Space Exploration","The investigation of outer space through astronomy and space technology."],
+        ["Euthanasia","The practice of intentionally ending a life to relieve pain and suffering."],
+        ["Automation","The use of technology to perform tasks with minimal human intervention, often affecting employment."],
+        ["Data Privacy","The right of individuals to control how their personal information is collected and used."],
+        ["Biotechnology","The use of living organisms or systems to develop products and technologies for various applications."]
+      ]
+    }
+  };
+
+  const catKeys = Object.keys(DATA);
+  let activeCat = "all";
+  let pullCount = 0;
+  let cardCounter = 100 + Math.floor(Math.random()*40);
+  let lastPick = null;
+  const historyList = [];
+
+  const drawersEl = document.getElementById('drawers');
+  const cardEl = document.getElementById('card');
+  const cardNo = document.getElementById('cardNo');
+  const cardStamp = document.getElementById('cardStamp');
+  const cardWord = document.getElementById('cardWord');
+  const cardMeaning = document.getElementById('cardMeaning');
+  const cardHint = document.getElementById('cardHint');
+  const pullBtn = document.getElementById('pullBtn');
+  const tallyEl = document.getElementById('tally');
+  const historyEl = document.getElementById('history');
+
+  function buildDrawers(){
+    const all = document.createElement('button');
+    all.className = 'drawer-tab active';
+    all.textContent = 'All Drawers';
+    all.dataset.cat = 'all';
+    drawersEl.appendChild(all);
+    catKeys.forEach(key=>{
+      const b = document.createElement('button');
+      b.className = 'drawer-tab';
+      b.textContent = DATA[key].label;
+      b.dataset.cat = key;
+      drawersEl.appendChild(b);
+    });
+    drawersEl.addEventListener('click', e=>{
+      const btn = e.target.closest('.drawer-tab');
+      if(!btn) return;
+      activeCat = btn.dataset.cat;
+      [...drawersEl.children].forEach(c=>c.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  }
+
+  function pickWord(){
+    let pool = [];
+    if(activeCat === 'all'){
+      catKeys.forEach(k=> DATA[k].words.forEach(w=> pool.push({cat:k, word:w[0], meaning:w[1]})));
+    } else {
+      DATA[activeCat].words.forEach(w=> pool.push({cat:activeCat, word:w[0], meaning:w[1]}));
+    }
+    if(pool.length > 1 && lastPick){
+      pool = pool.filter(p=> p.word !== lastPick.word);
+    }
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
+  function pullCard(){
+    cardEl.classList.add('pulling');
+    setTimeout(()=>{
+      const pick = pickWord();
+      lastPick = pick;
+      pullCount++;
+      cardCounter++;
+
+      cardEl.classList.remove('revealed');
+      cardNo.textContent = 'No. ' + String(cardCounter).padStart(4,'0');
+      cardStamp.textContent = DATA[pick.cat].label;
+      cardWord.textContent = pick.word;
+      cardMeaning.textContent = pick.meaning;
+      cardHint.textContent = '';
+
+      cardEl.classList.remove('pulling');
+      void cardEl.offsetWidth;
+      cardEl.style.animation = 'none';
+      void cardEl.offsetWidth;
+      cardEl.style.animation = '';
+
+      tallyEl.textContent = 'Cards pulled this sitting: ' + pullCount;
+
+      historyList.unshift(pick.word);
+      if(historyList.length > 8) historyList.pop();
+      historyEl.innerHTML = '';
+      historyList.forEach(w=>{
+        const chip = document.createElement('span');
+        chip.className = 'history-chip';
+        chip.textContent = w;
+        historyEl.appendChild(chip);
+      });
+    }, 380);
+  }
+
+  pullBtn.addEventListener('click', pullCard);
+  cardEl.addEventListener('click', ()=> cardEl.classList.toggle('revealed'));
+  cardEl.addEventListener('keydown', e=>{
+    if(e.key === 'Enter' || e.key === ' '){
+      e.preventDefault();
+      cardEl.classList.toggle('revealed');
+    }
+  });
+
+  buildDrawers();
+
+  /* ---------- Recorder ---------- */
+  const recBtn = document.getElementById('recBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const recDot = document.getElementById('recDot');
+  const recTime = document.getElementById('recTime');
+  const reelL = document.getElementById('reelL');
+  const reelR = document.getElementById('reelR');
+  const playback = document.getElementById('playback');
+  const player = document.getElementById('player');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const recStatus = document.getElementById('recStatus');
+
+  let mediaRecorder, chunks = [], startTime, timerId, audioBlob;
+
+  function formatTime(ms){
+    const s = Math.floor(ms/1000);
+    const mm = String(Math.floor(s/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    return mm + ':' + ss;
+  }
+
+  recBtn.addEventListener('click', async ()=>{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      recStatus.textContent = 'Microphone access is not available in this browser.';
+      return;
+    }
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunks = [];
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = e=> { if(e.data.size > 0) chunks.push(e.data); };
+      mediaRecorder.onstop = ()=>{
+        audioBlob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+        player.src = URL.createObjectURL(audioBlob);
+        playback.classList.add('show');
+        stream.getTracks().forEach(t=>t.stop());
+        recStatus.textContent = 'Recording ready below.';
+      };
+      mediaRecorder.start();
+      startTime = Date.now();
+      timerId = setInterval(()=> recTime.textContent = formatTime(Date.now()-startTime), 250);
+      recDot.classList.add('live');
+      reelL.classList.add('spin');
+      reelR.classList.add('spin');
+      recBtn.disabled = true;
+      stopBtn.disabled = false;
+      recStatus.textContent = 'Recording…';
+    } catch(err){
+      recStatus.textContent = 'Microphone permission was denied or unavailable.';
+    }
+  });
+
+  stopBtn.addEventListener('click', ()=>{
+    if(mediaRecorder && mediaRecorder.state !== 'inactive'){
+      mediaRecorder.stop();
+    }
+    clearInterval(timerId);
+    recDot.classList.remove('live');
+    reelL.classList.remove('spin');
+    reelR.classList.remove('spin');
+    recBtn.disabled = false;
+    stopBtn.disabled = true;
+  });
+
+  downloadBtn.addEventListener('click', ()=>{
+    if(!audioBlob) return;
+    const word = (lastPick && lastPick.word ? lastPick.word : 'discussion').toLowerCase().replace(/\s+/g,'-');
+    const date = new Date().toISOString().slice(0,10);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(audioBlob);
+    a.download = `discourse-${word}-${date}.webm`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+})();
+</script>
+</body>
+</html>
